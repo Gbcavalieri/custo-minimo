@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Custo Mínimo Viável</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: ferramenta em duas colunas — entradas à esquerda, recibo de resultados fixo à direita; uma coluna no celular */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --ink:#18212b; --muted:#5d6b78; --line:#d6dde4;
+  --accent:#1f5fd1; --accent-soft:#e3ecfb; --ok:#13804f; --ok-soft:#e1f3ea; --warn:#b5521b;
+  --f-display:"Familjen Grotesk",system-ui,sans-serif;
+  --f-body:"Atkinson Hyperlegible",system-ui,sans-serif;
+  --f-num:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#10151b; --surface:#18202a; --ink:#e7edf3; --muted:#93a1ae; --line:#2b3643;
+  --accent:#6b9cf3; --accent-soft:#1c2a40; --ok:#4cc58a; --ok-soft:#163126; --warn:#f0925a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151b; --surface:#18202a; --ink:#e7edf3; --muted:#93a1ae; --line:#2b3643;
+  --accent:#6b9cf3; --accent-soft:#1c2a40; --ok:#4cc58a; --ok-soft:#163126; --warn:#f0925a; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px}
+.wrap{max-width:1080px;margin:0 auto;display:grid;gap:24px}
+header{display:grid;gap:6px;max-width:62ch}
+.eyebrow{font-family:var(--f-num);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+h1{font-family:var(--f-display);font-size:clamp(28px,5vw,40px);line-height:1.1;margin:0;text-wrap:balance}
+header p{margin:0;color:var(--muted)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:24px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.col{display:grid;gap:20px;min-width:0}
+
+section.block{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;display:grid;gap:14px;min-width:0}
+.block-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+h2{font-family:var(--f-display);font-size:20px;margin:0}
+.subtotal{font-family:var(--f-num);font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.subtotal b{color:var(--ink);font-weight:600}
+.hint{margin:0;color:var(--muted);font-size:13.5px}
+
+.rows{display:grid;gap:8px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 150px 36px;gap:8px;align-items:center}
+@media (max-width:480px){.row{grid-template-columns:minmax(0,1fr) 112px 36px}}
+input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%;min-width:0}
+input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.money{position:relative}
+.money span{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-family:var(--f-num);font-size:12px;color:var(--muted);pointer-events:none}
+.money input{padding-left:32px;text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.del{width:36px;height:36px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--muted);cursor:pointer;font-size:20px;line-height:1}
+.del:hover,.del:focus-visible{color:var(--warn);border-color:var(--line);outline:none}
+.add{justify-self:start;font:inherit;font-weight:700;font-size:14px;color:var(--accent);background:var(--accent-soft);border:0;border-radius:8px;padding:9px 14px;cursor:pointer}
+.add:hover{filter:brightness(.97)}
+.add:focus-visible,.ghost:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.empty{color:var(--muted);font-size:14px;padding:6px 0}
+
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+.field{display:grid;gap:6px}
+.field label{font-size:13.5px;font-weight:700}
+.field small{color:var(--muted);font-size:12.5px}
+.field input{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+
+/* Recibo */
+aside{position:sticky;top:16px;display:grid;gap:14px;min-width:0}
+@media (max-width:860px){aside{position:static}}
+.receipt{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;display:grid;gap:16px}
+.receipt h2{font-size:18px}
+.lines{display:grid;gap:6px;font-family:var(--f-num);font-size:13.5px;font-variant-numeric:tabular-nums}
+.line{display:flex;justify-content:space-between;gap:12px}
+.line span:first-child{color:var(--muted)}
+.line.total{border-top:1px dashed var(--line);padding-top:8px;font-weight:600}
+.line.total span:first-child{color:var(--ink)}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;display:flex}
+.bar i{display:block;height:100%}
+.bar .p{background:var(--accent)} .bar .q{background:var(--muted)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.legend .lp::before{background:var(--accent)} .legend .lq::before{background:var(--muted)}
+
+.price{border-radius:10px;padding:14px 16px;display:grid;gap:2px}
+.price.min{background:var(--accent-soft)}
+.price.ideal{background:var(--ok-soft)}
+.price .tag{font-family:var(--f-num);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase}
+.price.min .tag{color:var(--accent)} .price.ideal .tag{color:var(--ok)}
+.price .big{font-family:var(--f-display);font-weight:700;font-size:34px;line-height:1.1;font-variant-numeric:tabular-nums}
+.price .big small{font-family:var(--f-body);font-weight:400;font-size:14px;color:var(--muted)}
+.price .sub{font-family:var(--f-num);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.alert{color:var(--warn);font-size:13.5px;margin:0}
+.ghost{font:inherit;font-size:13.5px;color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer}
+.ghost:hover{color:var(--ink)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.note{font-size:12.5px;color:var(--muted);margin:0}
+@media (prefers-reduced-motion:no-preference){.price .big{transition:color .2s}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Calculadora de preço por diária</span>
+    <h1>Quanto você precisa cobrar por dia de trabalho?</h1>
+    <p>Liste seus custos do mês, diga quantos dias você tem disponíveis para trabalhar e veja a diária mínima para pagar todas as contas e a diária ideal para crescer.</p>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <section class="block" id="sec-prof">
+        <div class="block-head">
+          <h2>Custos profissionais</h2>
+          <span class="subtotal">Subtotal <b id="sub-prof">R$ 0,00</b>/mês</span>
+        </div>
+        <p class="hint">Tudo que existe por causa do trabalho: equipamento, softwares, transporte, internet, impostos fixos.</p>
+        <div class="rows" id="rows-prof"></div>
+        <button class="add" type="button" data-add="prof">+ Adicionar custo profissional</button>
+      </section>
+
+      <section class="block" id="sec-pess">
+        <div class="block-head">
+          <h2>Custos pessoais</h2>
+          <span class="subtotal">Subtotal <b id="sub-pess">R$ 0,00</b>/mês</span>
+        </div>
+        <p class="hint">O que você gasta para viver: moradia, alimentação, contas da casa, saúde, lazer.</p>
+        <div class="rows" id="rows-pess"></div>
+        <button class="add" type="button" data-add="pess">+ Adicionar custo pessoal</button>
+      </section>
+
+      <section class="block">
+        <h2>Sua rotina e suas metas</h2>
+        <div class="fields">
+          <div class="field">
+            <label for="dias">Dias livres para trabalhar no mês</label>
+            <input id="dias" type="text" inputmode="numeric" value="12">
+            <small>Dias em que você pode pegar trabalho pago.</small>
+          </div>
+          <div class="field">
+            <label for="horas">Horas por dia de trabalho</label>
+            <input id="horas" type="text" inputmode="decimal" value="8">
+            <small>Usado para calcular o valor por hora.</small>
+          </div>
+          <div class="field">
+            <label for="imposto">Impostos e taxas sobre o que entra (%)</label>
+            <input id="imposto" type="text" inputmode="decimal" value="6">
+            <small>Nota fiscal, taxa de maquininha, etc. Use 0 se não tiver.</small>
+          </div>
+          <div class="field">
+            <label for="margem">Margem para o valor ideal (%)</label>
+            <input id="margem" type="text" inputmode="decimal" value="40">
+            <small>Reserva, reinvestimento em equipamento e lucro.</small>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <aside>
+      <div class="receipt" aria-live="polite">
+        <h2>Resumo do mês</h2>
+        <div class="lines">
+          <div class="line"><span>Profissional</span><span id="r-prof">R$ 0,00</span></div>
+          <div class="line"><span>Pessoal</span><span id="r-pess">R$ 0,00</span></div>
+          <div class="line total"><span>Custo total</span><span id="r-total">R$ 0,00</span></div>
+        </div>
+        <div>
+          <div class="bar" aria-hidden="true"><i class="p" id="bar-p"></i><i class="q" id="bar-q"></i></div>
+          <div class="legend" style="margin-top:6px"><span class="lp" id="lg-p">Profissional</span><span class="lq" id="lg-q">Pessoal</span></div>
+        </div>
+
+        <div class="price min">
+          <span class="tag">Diária mínima</span>
+          <span class="big" id="min-dia">R$ 0 <small>/dia</small></span>
+          <span class="sub" id="min-sub">—</span>
+        </div>
+        <div class="price ideal">
+          <span class="tag">Diária ideal</span>
+          <span class="big" id="ideal-dia">R$ 0 <small>/dia</small></span>
+          <span class="sub" id="ideal-sub">—</span>
+        </div>
+        <p class="alert" id="alerta" hidden></p>
+        <p class="note">Mínimo = custo total ÷ dias livres, já somando os impostos. Abaixo desse valor, o mês fecha no vermelho.</p>
+        <div class="actions">
+          <button class="ghost" type="button" id="limpar">Limpar tudo</button>
+          <button class="ghost" type="button" id="exemplo">Carregar exemplo</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function(){
+  const KEY = "custo-minimo-v1";
+  const EXEMPLO = {
+    prof:[["Parcela do equipamento",450],["Lightroom / Adobe",50],["Internet e celular",150],["Transporte e combustível",400],["MEI (DAS)",80],["Manutenção e seguro do drone",120]],
+    pess:[["Aluguel / moradia",1200],["Mercado e alimentação",900],["Contas da casa (luz, água, gás)",250],["Plano de saúde",300],["Lazer",300]],
+    dias:"12", horas:"8", imposto:"6", margem:"40"
+  };
+  let seq = 0;
+  const brl = n => n.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+  const brl0 = n => n.toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
+  function num(v){
+    if(v==null) return 0;
+    let s = String(v).trim().replace(/[R$\s]/g,"");
+    if(!s) return 0;
+    if(s.includes(",")) s = s.replace(/\./g,"").replace(",",".");
+    const n = parseFloat(s);
+    return isFinite(n) ? n : 0;
+  }
+  function fmtInput(n){ return n ? n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : ""; }
+
+  function addRow(tipo, nome="", valor="", focus=false){
+    const box = document.getElementById("rows-"+tipo);
+    const id = tipo+"-"+(++seq);
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML =
+      `<input id="${id}-n" type="text" placeholder="Nome do custo" aria-label="Nome do custo">
+       <div class="money"><span>R$</span><input id="${id}-v" type="text" inputmode="decimal" placeholder="0,00" aria-label="Valor mensal"></div>
+       <button class="del" type="button" aria-label="Remover este custo" title="Remover">×</button>`;
+    row.querySelector(`#${id}-n`).value = nome;
+    row.querySelector(`#${id}-v`).value = typeof valor==="number" ? fmtInput(valor) : valor;
+    row.querySelector(".del").addEventListener("click",()=>{ row.remove(); emptyState(tipo); calc(); });
+    row.querySelector(`#${id}-v`).addEventListener("blur",e=>{ const n=num(e.target.value); e.target.value = n?fmtInput(n):""; save(); });
+    box.appendChild(row);
+    emptyState(tipo);
+    if(focus) row.querySelector("input").focus();
+  }
+  function emptyState(tipo){
+    const box = document.getElementById("rows-"+tipo);
+    const has = box.querySelector(".row");
+    let e = box.querySelector(".empty");
+    if(!has && !e){ e=document.createElement("div"); e.className="empty"; e.textContent="Nenhum custo ainda. Adicione o primeiro abaixo."; box.appendChild(e); }
+    if(has && e) e.remove();
+  }
+  function rows(tipo){
+    return [...document.querySelectorAll(`#rows-${tipo} .row`)].map(r=>{
+      const i=r.querySelectorAll("input"); return [i[0].value, i[1].value];
+    });
+  }
+  function soma(tipo){ return rows(tipo).reduce((a,[,v])=>a+num(v),0); }
+
+  function calc(){
+    const p = soma("prof"), q = soma("pess"), t = p+q;
+    const dias = num(document.getElementById("dias").value);
+    const horas = num(document.getElementById("horas").value);
+    let imp = Math.min(Math.max(num(document.getElementById("imposto").value),0),95);
+    const mar = Math.max(num(document.getElementById("margem").value),0);
+
+    document.getElementById("sub-prof").textContent = brl(p);
+    document.getElementById("sub-pess").textContent = brl(q);
+    document.getElementById("r-prof").textContent = brl(p);
+    document.getElementById("r-pess").textContent = brl(q);
+    document.getElementById("r-total").textContent = brl(t);
+    const pp = t ? p/t*100 : 0;
+    document.getElementById("bar-p").style.width = pp+"%";
+    document.getElementById("bar-q").style.width = (t?100-pp:0)+"%";
+    document.getElementById("lg-p").textContent = `Profissional ${t?Math.round(pp):0}%`;
+    document.getElementById("lg-q").textContent = `Pessoal ${t?Math.round(100-pp):0}%`;
+
+    const alerta = document.getElementById("alerta");
+    const mensalMin = t/(1-imp/100);
+    const mensalIdeal = mensalMin*(1+mar/100);
+    if(dias>0){
+      const dMin = mensalMin/dias, dIdeal = mensalIdeal/dias;
+      document.getElementById("min-dia").innerHTML = `${brl0(Math.ceil(dMin))} <small>/dia</small>`;
+      document.getElementById("ideal-dia").innerHTML = `${brl0(Math.ceil(dIdeal))} <small>/dia</small>`;
+      const hMin = horas>0 ? ` · ${brl(dMin/horas)}/h` : "";
+      const hIdeal = horas>0 ? ` · ${brl(dIdeal/horas)}/h` : "";
+      document.getElementById("min-sub").textContent = `${brl0(Math.ceil(mensalMin))} no mês${hMin}`;
+      document.getElementById("ideal-sub").textContent = `${brl0(Math.ceil(mensalIdeal))} no mês${hIdeal}`;
+      alerta.hidden = dias<=31; alerta.textContent = "O mês tem no máximo 31 dias. Confira os dias livres.";
+    } else {
+      ["min-dia","ideal-dia"].forEach(id=>document.getElementById(id).innerHTML = `— <small>/dia</small>`);
+      document.getElementById("min-sub").textContent = "Informe os dias livres";
+      document.getElementById("ideal-sub").textContent = "Informe os dias livres";
+      alerta.hidden = false; alerta.textContent = "Coloque quantos dias você tem livres para trabalhar no mês.";
+    }
+    save();
+  }
+
+  function save(){
+    try{
+      localStorage.setItem(KEY, JSON.stringify({
+        prof:rows("prof"), pess:rows("pess"),
+        dias:document.getElementById("dias").value, horas:document.getElementById("horas").value,
+        imposto:document.getElementById("imposto").value, margem:document.getElementById("margem").value
+      }));
+    }catch(e){}
+  }
+  function load(data){
+    ["prof","pess"].forEach(t=>{ document.getElementById("rows-"+t).innerHTML=""; (data[t]||[]).forEach(([n,v])=>addRow(t,n,v)); emptyState(t); });
+    ["dias","horas","imposto","margem"].forEach(k=>{ if(data[k]!=null) document.getElementById(k).value=data[k]; });
+    calc();
+  }
+
+  document.querySelectorAll("[data-add]").forEach(b=>b.addEventListener("click",()=>{ addRow(b.dataset.add,"","",true); calc(); }));
+  document.addEventListener("input", e=>{ if(e.target.matches("input")) calc(); });
+  document.getElementById("limpar").addEventListener("click",()=>load({prof:[],pess:[],dias:"",horas:"8",imposto:"0",margem:"40"}));
+  document.getElementById("exemplo").addEventListener("click",()=>load(EXEMPLO));
+
+  let saved=null;
+  try{ saved = JSON.parse(localStorage.getItem(KEY)||"null"); }catch(e){}
+  load(saved || EXEMPLO);
+})();
+</script>
+</body>
+</html>
